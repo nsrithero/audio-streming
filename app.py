@@ -95,4 +95,5 @@ def get_audio_list():
     audio_files = os.listdir(app.config['UPLOAD_FOLDER'])
     return jsonify({'audio_files': audio_files})
 
-
+if __name__ == '__main__':
+    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
