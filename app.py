@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'mp3', 'wav'}
-socketio = SocketIO(app)
+socketio = SocketIO(app,logger=True, engineio_logger=True)
 
 current_song = None
 
