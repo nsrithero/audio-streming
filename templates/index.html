@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Sharing App</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(to right, #ff5f6d, #ffc371);
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            margin-top: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .upload-btn, .delete-btn, .stop-btn, .start-btn {
+            margin-bottom: 20px;
+            border-radius: 30px;
+            padding: 10px 20px;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            color: #ffffff;
+            background: #ff5f6d;
+            border: none;
+        }
+        .upload-btn:hover, .delete-btn:hover, .stop-btn:hover, .start-btn:hover {
+            background-color: #ff7f8a;
+            transform: scale(1.05);
+        }
+        .audio-list-container {
+            max-height: 240px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .audio-list-item {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.2);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+            word-wrap: break-word;
+        }
+        .audio-list-item:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: scale(1.02);
+        }
+        .audio-list-item button {
+            margin-left: 10px;
+            border-radius: 30px;
+            padding: 5px 15px;
+            color: #ffffff;
+            background: transparent;
+            border: none;
+        }
+        .audio-list-item span {
+            flex: 1;
+            margin-right: 10px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .audio-list-item span:hover {
+            color: #ffffff;
+        }
+        #audioPlayer,.audio-Player {
+            width: 100%;
+            height: 60px;
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            margin-top: 20px;
+        }
+        .control-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .control-btn:hover {
+            color: #ff7f8a;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .icon-btn:hover {
+            color: #ff7f8a;
+        }
+        .melody-text {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            animation: colorChange 5s infinite;
+        }
+        @media (max-width: 576px) {
+            .audio-list-item {
+                font-size: 0.8rem;
+                padding: 10px;
+            }
+            .audio-control {
+                flex-direction: column;
+                align-items: center;
+            }
+            .audio-control button {
+                margin-top: 10px;
+            }
+        }
+        @keyframes colorChange {
+            0% { color: #ff0015; text-shadow: 0px 0px 5px #ff0015;}
+            25% { color: #ffc371; text-shadow: 0px 0px 5px #ffc371;}
+            50% { color: #ff7f8a; text-shadow: 0px 0px 5px #ff7f8a;}
+            75% { color: #ffb3b1; text-shadow: 0px 0px 5px #ffb3b1;}
+            100% { color: #ff5f6d; text-shadow: 0px 0px 5px #ff5f6d;}
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.2.0/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+        var audioFiles = [{% for filename in audio_files %}'{{ filename }}',{% endfor %}];
+        var currentIndex = -1;
+
+        function playAudio(filename) {
+            socket.emit('play_audio', { filename: filename });
+            document.getElementById('current-song').innerText = filename;
+        }
+
+        function playNextAudio() {
+            currentIndex++;
+            if (currentIndex >= audioFiles.length) {
+                currentIndex = 0;
+            }
+            var nextAudio = audioFiles[currentIndex];
+            playAudio(nextAudio);
+        }
+
+        function playPrevAudio() {
+            currentIndex--;
+            if (currentIndex < 0) {
+                currentIndex = audioFiles.length - 1;
+            }
+            var prevAudio = audioFiles[currentIndex];
+            playAudio(prevAudio);
+        }
+
+        function stopAudio() {
+            socket.emit('stop_audio');
+        }
+
+        function startAudio() {
+            socket.emit('start_audio');
+        }
+
+        socket.on('play_audio', function(data) {
+            var audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.src = data.audio_url;
+
+            audioPlayer.addEventListener('canplay', function() {
+                audioPlayer.play().catch(function(error) {
+                    console.error('Auto-play failed:', error);
+                });
+            });
+
+            function handleEndedOnce() {
+                playNextAudio();
+                audioPlayer.removeEventListener('ended', handleEndedOnce);
+            }
+            audioPlayer.addEventListener('ended', handleEndedOnce);
+        });
+
+        socket.on('stop_audio', function() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.pause();
+        });
+
+        socket.on('start_audio', function() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.play().catch(function(error) {
+                console.error('Auto-play failed:', error);
+            });
+        });
+
+        function handleFileSelect() {
+            document.getElementById('uploadForm').submit();
+        }
+
+        function deleteAllAudio() {
+            if (confirm("Are you sure you want to delete all audio files?")) {
+                fetch('/delete_all_audio', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    updateAudioList();
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+
+        function deleteAudio(filename) {
+            if (confirm("Are you sure you want to delete this audio file?")) {
+                fetch('/delete_audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'filename=' + encodeURIComponent(filename)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    updateAudioList();
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+
+        function updateAudioList() {
+            $.get('/get_audio_list', function(data) {
+                var audioListContainer = document.querySelector('.audio-list-container');
+                audioListContainer.innerHTML = '';
+
+                data.audio_files.forEach(function(filename) {
+                    var audioListItem = document.createElement('div');
+                    audioListItem.className = 'audio-list-item';
+                    audioListItem.innerHTML = `
+                        <span onclick="playAudio('${filename}')">${filename}</span>
+                        <button class="icon-btn" onclick="deleteAudio('${filename}')"><i class="fas fa-trash-alt"></i></button>
+                    `;
+                    audioListContainer.appendChild(audioListItem);
+                });
+
+                audioFiles = data.audio_files;
+            });
+        }
+
+        setInterval(updateAudioList, 500);
+    </script>
+</head>
+<body>
+    <div class="melody-text">MELODY</div>
+    <div class="container">
+        <div class="d-flex justify-content-between mb-3">
+            <a href="/upload_page" class="upload-btn"><i class="fas fa-upload"></i> Upload Audio</a>
+            <button class="delete-btn" onclick="deleteAllAudio()"><i class="fas fa-trash-alt"></i> Delete All</button>
+        </div>
+        <div class="audio-list-container">
+            {% for filename in audio_files %}
+            <div class="audio-list-item" onclick="playAudio('{{ filename|escape }}')">
+                <span>{{ filename }}</span>
+                <button class="icon-btn" onclick="deleteAudio('{{ filename|escape }}')">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="d-flex justify-content-between align-items-center audio-control mt-3">
+            <div id="current-song" class="mx-3 text-center" style="flex: 1;"></div>
+            <div class="row">
+                <button class="control-btn" onclick="playPrevAudio()">
+                    <i class="fas fa-fast-backward"></i>
+                </button>
+                <button class="control-btn" onclick="stopAudio()">
+                    <i class="fas fa-stop-circle"></i>
+                </button>
+                <button class="control-btn" onclick="startAudio()">
+                    <i class="fas fa-play-circle"></i>
+                </button>
+                <button class="control-btn" onclick="playNextAudio()">
+                    <i class="fas fa-fast-forward"></i>
+                </button>
+            </div>
+            
+        </div>
+        <audio id="audioPlayer" controls></audio>
+    </div>
+</body>
+</html>
